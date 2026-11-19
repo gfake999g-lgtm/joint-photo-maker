@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Joint Photo Maker — Final Locked</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0d1117; --card: #161b22; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff;
+    --green: #3fb950; --red: #f85149; --orange: #d29922;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px; }
+  .container { max-width: 900px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 30px; }
+  header h1 { font-size: 28px; margin-bottom: 6px; }
+  header p { color: var(--muted); font-size: 13px; }
+  .section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+  .section h2 { font-size: 18px; margin-bottom: 16px; }
+  .type-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .type-btn { padding: 16px; border: 2px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--text); cursor: pointer; transition: all 0.2s; text-align: center; }
+  .type-btn:hover, .type-btn.active { border-color: var(--accent); }
+  .type-btn.active { background: rgba(88,166,255,0.1); }
+  .type-btn .emoji { font-size: 28px; display: block; margin-bottom: 4px; }
+  .type-btn .title { font-size: 15px; font-weight: 700; display: block; }
+  .type-btn .size { font-size: 11px; color: var(--muted); display: block; margin-top: 4px; }
+  .upload-area { border: 2px dashed var(--border); border-radius: 12px; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.3s; }
+  .upload-area:hover, .upload-area.dragover { border-color: var(--accent); background: rgba(88,166,255,0.05); }
+  .upload-area .icon { font-size: 48px; margin-bottom: 10px; }
+  .upload-area p { color: var(--muted); font-size: 14px; }
+  .upload-area .hint { font-size: 12px; margin-top: 6px; }
+  #fileInput { display: none; }
+  .photo-preview { margin-top: 16px; display: none; background: var(--bg); border-radius: 8px; padding: 16px; text-align: center; }
+  .photo-preview img { max-width: 200px; max-height: 180px; border-radius: 6px; border: 1px solid var(--border); }
+  .photo-preview .name { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .rotate-controls { display: flex; gap: 10px; justify-content: center; margin-top: 12px; }
+  .rotate-btn { padding: 10px 18px; border: 2px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s; }
+  .rotate-btn:hover { border-color: var(--accent); background: rgba(88,166,255,0.1); }
+  .rotate-info { margin-top: 8px; font-size: 12px; color: var(--orange); }
+  .qty-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 16px; }
+  .qty-scroll::-webkit-scrollbar { height: 6px; }
+  .qty-scroll::-webkit-scrollbar-track { background: var(--bg); border-radius: 3px; }
+  .qty-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .qty-btn { min-width: 64px; padding: 10px 8px; border: 2px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; flex-shrink: 0; text-align: center; }
+  .qty-btn:hover { border-color: var(--accent); }
+  .qty-btn.active { border-color: var(--accent); background: rgba(88,166,255,0.15); color: var(--accent); }
+  .qty-btn small { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; font-weight: 400; }
+  .layout-label { text-align: center; margin-top: 12px; font-size: 14px; color: var(--text); }
+  .size-badge { display: inline-block; margin-top: 8px; padding: 6px 14px; background: rgba(63,185,80,0.12); border: 1px solid var(--green); color: var(--green); border-radius: 20px; font-size: 13px; font-weight: 600; }
+  .zoom-controls { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; padding: 10px; background: var(--bg); border-radius: 8px; flex-wrap: wrap; }
+  .zoom-btn { width: 36px; height: 36px; border: 2px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); font-size: 18px; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+  .zoom-btn:hover { border-color: var(--accent); background: rgba(88,166,255,0.1); }
+  .zoom-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .zoom-slider { flex: 1; min-width: 150px; max-width: 300px; -webkit-appearance: none; appearance: none; height: 6px; background: var(--border); border-radius: 3px; outline: none; }
+  .zoom-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; background: var(--accent); border-radius: 50%; cursor: pointer; }
+  .zoom-slider::-moz-range-thumb { width: 18px; height: 18px; background: var(--accent); border-radius: 50%; cursor: pointer; border: none; }
+  .zoom-value { min-width: 52px; text-align: center; font-size: 13px; font-weight: 600; color: var(--accent); padding: 4px 8px; background: rgba(88,166,255,0.1); border-radius: 6px; }
+  .zoom-reset { padding: 6px 12px; border: 2px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .zoom-reset:hover { border-color: var(--orange); color: var(--orange); }
+  .zoom-hint { width: 100%; text-align: center; font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .canvas-wrapper { background: var(--bg); border-radius: 8px; padding: 12px; overflow: auto; max-height: 70vh; display: none; touch-action: none; }
+  .canvas-wrapper canvas { display: block; margin: 0 auto; border: 1px solid var(--border); border-radius: 4px; height: auto !important; }
+  .download-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+  .dl-btn { padding: 14px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; color: #fff; }
+  .dl-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .dl-jpg { background: var(--accent); }
+  .dl-pdf { background: var(--red); }
+  .dl-btn:not(:disabled):hover { transform: translateY(-2px); }
+  .info-box { background: rgba(88,166,255,0.08); border: 1px solid var(--accent); border-radius: 8px; padding: 12px 16px; font-size: 13px; color: var(--accent); }
+  @media (max-width: 600px) { .type-selector, .download-btns { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>📸 JOINT PHOTO MAKER</h1>
+    <p>Final Locked Version · A4 · 1mm Margin · 2mm Gap · Pinch Zoom</p>
+  </header>
+  <div class="section">
+    <h2>🎯 1. Select Photo Type</h2>
+    <div class="type-selector">
+      <button class="type-btn active" data-type="joint"><span class="emoji">📸</span><span class="title">Joint Photo</span><span class="size">1.7 × 1.2 inch (43.18 × 30.48 mm)</span></button>
+      <button class="type-btn" data-type="passport"><span class="emoji">🛂</span><span class="title">Passport Photo</span><span class="size">35 × 45 mm (Standard)</span></button>
+    </div>
+  </div>
+  <div class="section">
+    <h2>📤 2. Photo Upload & Rotate</h2>
+    <div class="upload-area" id="uploadArea"><div class="icon">🖼️</div><p>Click or Drag & Drop your photo here</p><p class="hint">Supports: JPG, JPEG, PNG</p></div>
+    <input type="file" id="fileInput" accept="image/jpeg,image/jpg,image/png">
+    <div class="photo-preview" id="photoPreview">
+      <img id="previewImg" src="" alt="Preview"><div class="name" id="fileName"></div>
+      <div class="rotate-controls"><button class="rotate-btn" id="rotateLeft">↺ Rotate Left</button><button class="rotate-btn" id="rotateRight">↻ Rotate Right</button></div>
+      <div class="rotate-info" id="rotateInfo">Rotation: 0°</div>
+    </div>
+  </div>
+  <div class="section">
+    <h2>🔢 3. Select Quantity</h2><div class="qty-scroll" id="qtyButtons"></div>
+    <div class="layout-label" id="layoutLabel"></div><div style="text-align:center"><span class="size-badge" id="sizeBadge">Photo Size: — × — mm</span></div>
+  </div>
+  <div class="section">
+    <h2>👁️ 4. Layout Preview</h2><div class="info-box" id="infoBox">⚠️ पहले एक photo upload करें, फिर layout preview दिखेगा।</div>
+    <div class="zoom-controls" id="zoomControls" style="display:none;">
+      <button class="zoom-btn" id="zoomOut" title="Zoom Out">−</button><input type="range" class="zoom-slider" id="zoomSlider" min="25" max="200" value="100" step="5">
+      <button class="zoom-btn" id="zoomIn" title="Zoom In">+</button><div class="zoom-value" id="zoomValue">100%</div>
+      <button class="zoom-reset" id="zoomReset" title="Reset Zoom">↺ Fit</button><div class="zoom-hint">👆 2-finger pinch ya scroll wheel se zoom karo</div>
+    </div>
+    <div class="canvas-wrapper" id="canvasWrapper"><canvas id="layoutCanvas"></canvas></div>
+  </div>
+  <div class="section">
+    <h2>⬇️ 5. Download</h2><div class="download-btns">
+      <button class="dl-btn dl-jpg" id="btnJpg" disabled>📥 JPEG Download</button><button class="dl-btn dl-pdf" id="btnPdf" disabled>📥 PDF Download</button>
+    </div>
+  </div>
+</div>
+<script>
+const DPI = 300;
+const mmToPx = mm => Math.round(mm * DPI / 25.4);
+const A4_W = 210, A4_H = 297, MARGIN = 1, GAP = 2;
+const TYPES = {
+  joint: { name: 'Joint', baseAspect: 1.7 / 1.2, baseW: 43.18, baseH: 30.48 },
+  passport: { name: 'Passport', baseAspect: 35 / 45, baseW: 35, baseH: 45 }
+};
+const GRID = { 6:[6,1], 12:[6,2], 18:[6,3], 24:[6,4], 30:[6,5], 36:[6,6], 42:[6,7] };
+const state = { originalPhoto:null, rotatedPhoto:null, type:'joint', qty:6, rotation:0, zoom:100 };
+const $ = id => document.getElementById(id);
+const uploadArea=$('uploadArea'), fileInput=$('fileInput'), photoPreview=$('photoPreview'), previewImg=$('previewImg'), fileNameEl=$('fileName');
+const rotateInfo=$('rotateInfo'), qtyButtons=$('qtyButtons'), layoutLabel=$('layoutLabel'), sizeBadge=$('sizeBadge');
+const canvas=$('layoutCanvas'), ctx=canvas.getContext('2d'), canvasWrapper=$('canvasWrapper'), infoBox=$('infoBox');
+const zoomControls=$('zoomControls'), zoomSlider=$('zoomSlider'), zoomValue=$('zoomValue'), zoomIn=$('zoomIn'), zoomOut=$('zoomOut'), zoomReset=$('zoomReset');
+const btnJpg=$('btnJpg'), btnPdf=$('btnPdf');
+function applyZoom(val) {
+  val=Math.max(25,Math.min(200,val)); state.zoom=val; zoomSlider.value=val; zoomValue.textContent=val+'%';
+  canvas.style.width=(canvas.width*(val/100))+'px'; canvas.style.height='auto';
+  zoomIn.disabled=val>=200; zoomOut.disabled=val<=25;
+}
+function resetZoom() {
+  const wrapperW=canvasWrapper.clientWidth-24;
+  const fitZoom=Math.floor((wrapperW/canvas.width)*100);
+  applyZoom(Math.max(25,Math.min(200,fitZoom)));
+}
+zoomIn.onclick=()=>applyZoom(state.zoom+10); zoomOut.onclick=()=>applyZoom(state.zoom-10); zoomReset.onclick=resetZoom;
+zoomSlider.oninput=e=>applyZoom(parseInt(e.target.value,10));
+canvasWrapper.addEventListener('wheel',e=>{ if(!state.rotatedPhoto)return; e.preventDefault(); applyZoom(state.zoom+(e.deltaY<0?5:-5)); },{passive:false});
+let touchStartDist=0,touchStartZoom=100;
+function getTouchDist(t){const dx=t[0].clientX-t[1].clientX,dy=t[0].clientY-t[1].clientY;return Math.sqrt(dx*dx+dy*dy);}
+canvasWrapper.addEventListener('touchstart',e=>{if(e.touches.length===2){e.preventDefault();touchStartDist=getTouchDist(e.touches);touchStartZoom=state.zoom;}},{passive:false});
+canvasWrapper.addEventListener('touchmove',e=>{if(e.touches.length===2&&touchStartDist){e.preventDefault();applyZoom(Math.round(touchStartZoom*(getTouchDist(e.touches)/touchStartDist)));}},{passive:false});
+canvasWrapper.addEventListener('touchend',e=>{if(e.touches.length<2)touchStartDist=0;});
+function rotateImage(img,rotation) {
+  if(rotation===0)return img;
+  const t=document.createElement('canvas'),c=t.getContext('2d');
+  if(rotation===90||rotation===270){t.width=img.height;t.height=img.width;}else{t.width=img.width;t.height=img.height;}
+  c.translate(t.width/2,t.height/2);c.rotate(rotation*Math.PI/180);c.drawImage(img,-img.width/2,-img.height/2);
+  const out=new Image();out.src=t.toDataURL('image/png');return out;
+}
+function calcLayout() {
+  const [cols,rows]=GRID[state.qty];let aspect=TYPES[state.type].baseAspect;
+  if(state.rotation===90||state.rotation===270)aspect=1/aspect;
+  const pageW=mmToPx(A4_W),pageH=mmToPx(A4_H),margin=mmToPx(MARGIN),gap=mmToPx(GAP);
+  const cellW=(pageW-2*margin-(cols-1)*gap)/cols,cellH=(pageH-2*margin-(rows-1)*gap)/rows;
+  let pw=cellW,ph=cellW/aspect;if(ph>cellH){ph=cellH;pw=cellH*aspect;}
+  return {cols,rows,margin,gap,pageW,pageH,pw,ph,aspect};
+}
+function refresh() {
+  const L=calcLayout(),rot=state.rotation?` [Rot ${state.rotation}°]`:'';
+  layoutLabel.textContent=`A4 — ${state.qty} ${TYPES[state.type].name} (${L.cols} × ${L.rows})${rot}`;
+  let photoW=TYPES[state.type].baseW,photoH=TYPES[state.type].baseH;
+  if(state.rotation===90||state.rotation===270)[photoW,photoH]=[photoH,photoW];
+  sizeBadge.textContent=`Photo Size: ${photoW.toFixed(2)} × ${photoH.toFixed(2)} mm${rot}`;
+  if(state.rotatedPhoto) {
+    canvas.width=L.pageW;canvas.height=L.pageH;canvas.style.width='';canvas.style.height='';
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+    for(let r=0;r<L.rows;r++)for(let c=0;c<L.cols;c++) {
+      if(r*L.cols+c>=state.qty)continue;
+      const x=L.margin+c*(L.pw+L.gap),y=L.margin+r*(L.ph+L.gap),img=state.rotatedPhoto;
+      const ratio=img.width/img.height,box=L.pw/L.ph;let sw,sh,sx,sy;
+      if(ratio>box){sh=img.height;sw=sh*box;sx=(img.width-sw)/2;sy=0;}
+      else{sw=img.width;sh=sw/box;sx=0;sy=(img.height-sh)/2;}
+      ctx.drawImage(img,sx,sy,sw,sh,x,y,L.pw,L.ph);
+      ctx.strokeStyle='#000';ctx.lineWidth=3;ctx.strokeRect(x,y,L.pw,L.ph);
+      ctx.strokeStyle='#ccc';ctx.lineWidth=1;ctx.setLineDash([8,6]);ctx.strokeRect(x+3,y+3,L.pw-6,L.ph-6);ctx.setLineDash([]);
+    }
+    canvasWrapper.style.display='block';zoomControls.style.display='flex';infoBox.style.display='none';
+    setTimeout(resetZoom,50);
+  } else {canvasWrapper.style.display='none';zoomControls.style.display='none';infoBox.style.display='block';}
+}
+function renderQtyButtons() {
+  qtyButtons.innerHTML='';
+  Object.keys(GRID).forEach(q=>{
+    const [c,r]=GRID[q],btn=document.createElement('button');
+    btn.className='qty-btn'+(+q===state.qty?' active':'');btn.innerHTML=`${q}<small>${c}×${r}</small>`;
+    btn.onclick=()=>{state.qty=+q;renderQtyButtons();refresh();};qtyButtons.appendChild(btn);
+  });
+}
+document.querySelectorAll('.type-btn').forEach(btn=>btn.onclick=()=>{
+  document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');state.type=btn.dataset.type;refresh();
+});
+function applyRotation(delta) {
+  state.rotation=(state.rotation+delta+360)%360;rotateInfo.textContent=`Rotation: ${state.rotation}°`;
+  if(state.originalPhoto){state.rotatedPhoto=rotateImage(state.originalPhoto,state.rotation);state.rotatedPhoto.onload=()=>{previewImg.src=state.rotatedPhoto.src;refresh();};}
+}
+$('rotateLeft').onclick=()=>applyRotation(-90);$('rotateRight').onclick=()=>applyRotation(90);
+uploadArea.onclick=()=>fileInput.click();
+uploadArea.ondragover=e=>{e.preventDefault();uploadArea.classList.add('dragover');};
+uploadArea.ondragleave=()=>uploadArea.classList.remove('dragover');
+uploadArea.ondrop=e=>{e.preventDefault();uploadArea.classList.remove('dragover');if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0]);};
+fileInput.onchange=e=>{if(e.target.files[0])loadFile(e.target.files[0]);};
+function loadFile(file) {
+  if(!['image/jpeg','image/jpg','image/png'].includes(file.type)){alert('❌ केवल JPG, JPEG या PNG files upload करें।');return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      state.originalPhoto=img;state.rotatedPhoto=img;state.rotation=0;previewImg.src=e.target.result;
+      fileNameEl.textContent=`${file.name} (${img.width}×${img.height}px)`;rotateInfo.textContent='Rotation: 0°';
+      photoPreview.style.display='block';uploadArea.querySelector('p').textContent='✅ Photo uploaded! Click to change.';
+      btnJpg.disabled=false;btnPdf.disabled=false;refresh();
+    };
+    img.onerror=()=>alert('Photo file पढ़ी नहीं जा सकी। दूसरी image चुनें।');img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+btnJpg.onclick=()=>{
+  const a=document.createElement('a');a.download=`${state.type}-a4-${state.qty}p-rot${state.rotation}.jpg`;
+  a.href=canvas.toDataURL('image/jpeg',0.95);a.click();
+};
+btnPdf.onclick=()=>{
+  if(!window.jspdf){alert('PDF library load नहीं हुई। Internet connection जाँचें।');return;}
+  const {jsPDF}=window.jspdf,pdf=new jsPDF({orientation:'p',unit:'mm',format:'a4'});
+  pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',0,0,A4_W,A4_H);
+  pdf.save(`${state.type}-a4-${state.qty}p-rot${state.rotation}.pdf`);
+};
+renderQtyButtons();refresh();
+</script>
+</body>
+</html>
